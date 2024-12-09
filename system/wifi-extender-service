@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# WiFi Extender service control script
+
+# Function to check if service is running
+check_status() {
+    if [ -f /var/run/wifi-extender/wifi-extender.pid ]; then
+        pid=$(cat /var/run/wifi-extender/wifi-extender.pid)
+        if [ -d "/proc/$pid" ]; then
+            return 0  # Running
+        fi
+    fi
+    return 1  # Not running
+}
+
+# Function to start the service
+start() {
+    if check_status; then
+        echo "WiFi Extender service is already running"
+        exit 1
+    fi
+    
+    echo "Starting WiFi Extender service..."
+    python3 -m wifi_extender.service.daemon
+    
+    # Wait for service to start
+    sleep 2
+    if check_status; then
+        echo "WiFi Extender service started successfully"
+        exit 0
+    else
+        echo "Failed to start WiFi Extender service"
+        exit 1
+    fi
+}
+
+# Function to stop the service
+stop() {
+    if ! check_status; then
+        echo "WiFi Extender service is not running"
+        exit 0
+    fi
+    
+    echo "Stopping WiFi Extender service..."
+    pid=$(cat /var/run/wifi-extender/wifi-extender.pid)
+    kill $pid
+    
+    # Wait for service to stop
+    for i in {1..30}; do
+        if ! check_status; then
+            echo "WiFi Extender service stopped successfully"
+            exit 0
+        fi
+        sleep 1
+    done
+    
+    echo "Failed to stop WiFi Extender service"
+    exit 1
+}
+
+# Function to show service status
+status() {
+    if check_status; then
+        echo "WiFi Extender service is running"
+        exit 0
+    else
+        echo "WiFi Extender service is not running"
+        exit 1
+    fi
+}
+
+# Main script
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    status)
+        status
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac 
